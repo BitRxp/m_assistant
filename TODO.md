@@ -35,12 +35,12 @@
   - Интегрировать генерацию эмбеддингов + retrieval (HNSW если доступен, иначе fallback) и ограничение контекста по символам.
   - Done: retrieval возвращает top-k и ограничивает суммарный контекст; покрыто pytest; подключено в dialog best-effort (не ломает WS без миграций).
 
-- [ ] Wake-word PoC
+- [x] Wake-word PoC
   - Реализовать PTT + on-device hotword PoC (Porcupine stub или tiny NN).
   - Deliverable: переключаемый режим активации, метрики FP/FN.
   - Done: hotword можно включать/отключать на лету; метрики собираются.
 
-- [ ] PoC Web client (React)
+- [x] PoC Web client (React)
   - Клиент на Vite+React: захват микрофона, отправка `audio.chunk` по WS, воспроизведение `tts.chunk`, показ `stt.partial`.
   - Done: end-to-end demo работает локально с backend.
 

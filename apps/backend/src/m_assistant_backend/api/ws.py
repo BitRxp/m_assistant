@@ -22,11 +22,15 @@ from ..wake.metrics import wake_detections_total, wake_false_negatives, wake_fal
 
 router = APIRouter()
 
+ActivationMode = Literal["ptt", "hotword", "auto"]
+
 
 @dataclass
 class AudioState:
     pcm16_mono_16khz: bytearray
     wake_listening: bool = True  # Whether actively listening for wake-word
+    activation_mode: ActivationMode = "auto"  # ptt, hotword, or auto
+    wake_enabled_runtime: bool = True  # Runtime wake-word on/off toggle
 
 
 def _get_dialog_manager() -> DialogManager:
@@ -140,8 +144,16 @@ async def ws_gateway(ws: WebSocket) -> None:
                     await ws.send_json({"type": "error", "code": "bad_request", "message": "invalid base64"})
                     continue
 
+                # Determine if we should process wake-word based on mode and runtime state
+                should_process_wake = (
+                    wake_detector 
+                    and state.wake_enabled_runtime 
+                    and state.activation_mode in ("hotword", "auto")
+                    and state.wake_listening
+                )
+
                 # Wake-word detection if enabled
-                if wake_detector and state.wake_listening:
+                if should_process_wake:
                     detection = wake_detector.process_audio(pcm16_mono_16khz=chunk)
                     if detection.detected:
                         wake_detections_total.labels(keyword=detection.keyword or "unknown").inc()
@@ -155,7 +167,7 @@ async def ws_gateway(ws: WebSocket) -> None:
                     # Still listening for wake-word, don't accumulate audio yet
                     continue
                 
-                # Accumulate audio only after wake-word detected or when wake-word disabled
+                # Accumulate audio only after wake-word detected or when in PTT/auto mode without wake
                 state.pcm16_mono_16khz.extend(chunk)
                 # PoC: we do not generate real partials yet.
                 await ws.send_json({"type": "stt.partial", "text": "…", "stability": 0.0})
@@ -195,6 +207,59 @@ async def ws_gateway(ws: WebSocket) -> None:
             if msg_type == "wake.report_false_negative":
                 wake_false_negatives.inc()
                 await ws.send_json({"type": "wake.report_ack", "reported": "false_negative"})
+                continue
+
+            if msg_type == "wake.set_mode":
+                mode = msg.get("mode")
+                if mode not in ("ptt", "hotword", "auto"):
+                    await ws.send_json({
+                        "type": "error", 
+                        "code": "bad_request", 
+                        "message": f"Invalid mode: {mode}. Must be 'ptt', 'hotword', or 'auto'"
+                    })
+                    continue
+                
+                state.activation_mode = mode  # type: ignore
+                state.wake_listening = True  # Reset wake listening state
+                if wake_detector:
+                    wake_detector.reset()
+                
+                await ws.send_json({
+                    "type": "wake.mode_changed",
+                    "mode": mode,
+                })
+                continue
+
+            if msg_type == "wake.enable":
+                state.wake_enabled_runtime = True
+                state.wake_listening = True
+                if wake_detector:
+                    wake_detector.reset()
+                await ws.send_json({
+                    "type": "wake.state_changed",
+                    "enabled": True,
+                })
+                continue
+
+            if msg_type == "wake.disable":
+                state.wake_enabled_runtime = False
+                state.wake_listening = False
+                if wake_detector:
+                    wake_detector.reset()
+                await ws.send_json({
+                    "type": "wake.state_changed",
+                    "enabled": False,
+                })
+                continue
+
+            if msg_type == "wake.get_status":
+                await ws.send_json({
+                    "type": "wake.status",
+                    "enabled": state.wake_enabled_runtime,
+                    "mode": state.activation_mode,
+                    "listening": state.wake_listening,
+                    "available": wake_detector is not None,
+                })
                 continue
 
             await ws.send_json({"type": "error", "code": "bad_request", "message": f"unknown type: {msg_type}"})
