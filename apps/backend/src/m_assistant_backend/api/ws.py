@@ -9,8 +9,8 @@ from typing import Any, Literal
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..dialog.manager import DialogManager
+from ..llm.proxy import create_llm_adapter_from_settings
 from ..settings import settings
-from ..llm.stub import StubLLMAdapter
 from ..stt.stub import StubSTTAdapter
 from ..tts.opentts import OpenTTSAdapter
 from ..tts.stub import StubTTSAdapter
@@ -24,11 +24,7 @@ class AudioState:
 
 
 def _get_dialog_manager() -> DialogManager:
-    # Dialog Manager v0 uses a stub LLM for deterministic tests.
-    if settings.llm_backend == "stub":
-        return DialogManager(llm=StubLLMAdapter())
-
-    raise ValueError(f"Unknown LLM_BACKEND: {settings.llm_backend}")
+    return DialogManager(llm=create_llm_adapter_from_settings())
 
 
 async def _stream_tts(ws: WebSocket, *, tts, text: str) -> None:

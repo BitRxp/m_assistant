@@ -14,7 +14,22 @@ class Settings(BaseSettings):
     tts_backend: str = "stub"  # stub | opentts
 
     dialog_enabled: bool = False
-    llm_backend: str = "stub"  # stub (LLM Proxy v0 will add real providers)
+    llm_backend: str = "stub"  # stub | proxy
+
+    llm_routing_mode: str = "priority"  # priority | weighted
+    llm_primary_provider: str = "ollama"  # openai | ollama
+    llm_secondary_provider: str = "openai"  # openai | ollama
+    llm_primary_weight: float = 1.0
+    llm_secondary_weight: float = 0.0
+    llm_timeout_s: float = 20.0
+    llm_max_retries: int = 2
+
+    openai_base_url: str = "https://api.openai.com"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1"
 
     opentts_base_url: str = "http://localhost:5500"
     opentts_voice: str = "coqui-tts:en_vctk#p228"

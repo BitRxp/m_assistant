@@ -23,9 +23,9 @@
   - Минимальный turn-based менеджер: финальный транскрипт → prompt → LLM (stub) → ответ → TTS.
   - Done: при включенном флаге backend после `stt.final` отправляет `assistant.text` и стримит `tts.chunk` (pytest покрывает).
 
-- [ ] LLM Proxy v0
-  - Единый адаптер для 2 провайдеров с priority/weighted routing, таймаутами, retry и fallback; метрики выбора/ошибок.
-  - Done: при отказе первичного провайдера запрос уходит во fallback и метрика фиксируется.
+- [x] LLM Proxy v0
+  - Единый адаптер для 2 провайдеров (OpenAI-compatible + Ollama) с priority/weighted routing, таймаутами, retry и fallback; метрики выбора/ошибок.
+  - Done: при отказе первичного провайдера запрос уходит во fallback, метрики `llm_fallback_total`/`llm_requests_total` фиксируются (pytest покрывает), `/metrics` доступен.
 
 - [ ] Memory schema & migrations
   - Создать SQLite схемы `turns`,`facts`,`summaries`, базовую миграцию (alembic/duckdb-mig).

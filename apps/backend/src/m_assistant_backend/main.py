@@ -6,6 +6,7 @@ import structlog
 from fastapi import FastAPI
 
 from .api.health import router as health_router
+from .api.metrics import router as metrics_router
 from .api.ws import router as ws_router
 
 log = structlog.get_logger(__name__)
@@ -19,4 +20,5 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="m_assistant backend", version="0.1.0", lifespan=lifespan)
 app.include_router(health_router)
+app.include_router(metrics_router)
 app.include_router(ws_router)
