@@ -3,25 +3,25 @@
 
 Ниже приоритизированный список задач для m_assistant (критерии Done указаны кратко).
 
-- [ ] Project scaffold
+- [x] Project scaffold
   - Создать каркас репозитория: папки `apps/backend`,`apps/web`,`libs/protocol`,`infra/docker`,`scripts`; добавить `.env.example`, базовые README.md и `pyproject.toml`/`package.json` шаблоны.
   - Done: структура создана и проверена в репо.
 
-- [ ] Infra: OpenTTS Docker
+- [x] Infra: OpenTTS Docker
   - Добавить Docker Compose для OpenTTS/Coqui.
   - Done: `docker-compose up` стартует TTS и `/health` возвращает 200.
 
-- [ ] PoC WebSocket audio pipeline
+- [x] PoC WebSocket audio pipeline
   - Backend WS endpoint принимает `audio.chunk`, возвращает `stt.partial`/`stt.final` используя `faster-whisper` adapter.
   - Done: стабильный 10‑минутный звонок без переподключений; лог latency STT собран.
 
-- [ ] PoC TTS streaming
+- [x] PoC TTS streaming
   - Adapter к OpenTTS: текст → `tts.chunk` стрим; клиент воспроизводит чанки.
   - Done: измерен time-to-first-audio, нет прерываний при 60s воспроизведении.
 
-- [ ] Dialog Manager v0
-  - Минимальный turn-based менеджер: финальный транскрипт → prompt (с memory top-k) → LLM Proxy → ответ → TTS.
-  - Done: корректное состояние сессии, таймауты не бьют сессию.
+- [x] Dialog Manager v0
+  - Минимальный turn-based менеджер: финальный транскрипт → prompt → LLM (stub) → ответ → TTS.
+  - Done: при включенном флаге backend после `stt.final` отправляет `assistant.text` и стримит `tts.chunk` (pytest покрывает).
 
 - [ ] LLM Proxy v0
   - Единый адаптер для 2 провайдеров с priority/weighted routing, таймаутами, retry и fallback; метрики выбора/ошибок.

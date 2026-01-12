@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   opentts:
     image: synesthesiam/opentts:en-2.1

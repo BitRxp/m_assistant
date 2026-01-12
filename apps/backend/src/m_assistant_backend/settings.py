@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     stt_model: str = "small"
     stt_device: str = "cpu"
 
+    tts_backend: str = "stub"  # stub | opentts
+
+    dialog_enabled: bool = False
+    llm_backend: str = "stub"  # stub (LLM Proxy v0 will add real providers)
+
     opentts_base_url: str = "http://localhost:5500"
     opentts_voice: str = "coqui-tts:en_vctk#p228"
 
