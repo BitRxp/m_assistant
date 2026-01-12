@@ -52,11 +52,11 @@
   - Скрипты для бенчмарков latency (scripts/bench_latency.py), e2e сценарии, CI-шаблон.
   - Done: прогон сценариев записывает результаты и сравнивает с baseline.
 
-- [ ] Security & privacy review
+- [x] Security & privacy review
   - Документировать threat model, данные, шифрование DB, минимизация логов, opt-in облака.
   - Done: документ `docs/privacy.md` и checklist исполнения.
 
-- [ ] Docs: protocol & runbook
+- [x] Docs: protocol & runbook
   - Документация: `docs/protocol.md`, `docs/benchmarks.md`, `docs/runbook.md` (how to run PoC).
   - Done: инструкции покрывают запуск на Windows и Linux.
 
