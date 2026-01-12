@@ -10,6 +10,7 @@ from tenacity import RetryError, Retrying, retry_if_exception, stop_after_attemp
 from ..settings import settings
 from .base import ChatMessage, LLMAdapter
 from .metrics import llm_fallback, llm_latency_seconds, llm_provider_selected, llm_requests
+from .metrics import llm_fallback, llm_latency_ms, llm_latency_seconds, llm_provider_selected, llm_requests
 from .providers.ollama import OllamaAdapter
 from .providers.openai_compat import OpenAICompatAdapter
 
@@ -69,7 +70,9 @@ class LLMProxyAdapter(LLMAdapter):
             try:
                 out = provider.adapter.complete(messages=messages)
             finally:
-                llm_latency_seconds.labels(provider=provider.name).observe(time.perf_counter() - started)
+                elapsed_s = time.perf_counter() - started
+                llm_latency_seconds.labels(provider=provider.name).observe(elapsed_s)
+                llm_latency_ms.labels(provider=provider.name).observe(elapsed_s * 1000.0)
             return out
 
         retrying = Retrying(

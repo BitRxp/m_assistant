@@ -17,3 +17,14 @@ wake_false_negatives = Counter(
     "wake_false_negatives_total",
     "Manually reported false negative (missed) wake-word detections",
 )
+
+# Aliases expected by TODO: wake_fp_count / wake_fn_count
+wake_fp_count = Counter(
+    "wake_fp_count",
+    "False positive wake-word detections (reported by user)",
+)
+
+wake_fn_count = Counter(
+    "wake_fn_count",
+    "False negative wake-word detections (reported by user)",
+)

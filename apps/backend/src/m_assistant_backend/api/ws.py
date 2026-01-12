@@ -18,7 +18,15 @@ from ..stt.stub import StubSTTAdapter
 from ..tts.opentts import OpenTTSAdapter
 from ..tts.stub import StubTTSAdapter
 from ..wake.factory import create_wake_detector_from_settings
-from ..wake.metrics import wake_detections_total, wake_false_negatives, wake_false_positives
+from ..wake.metrics import (
+    wake_detections_total,
+    wake_false_negatives,
+    wake_false_positives,
+    wake_fp_count,
+    wake_fn_count,
+)
+from ..stt.metrics import stt_latency_ms
+from ..tts.metrics import tts_latency_ms
 
 router = APIRouter()
 
@@ -67,6 +75,7 @@ async def _stream_tts(ws: WebSocket, *, tts, text: str) -> None:
         chunk = audio[i : i + chunk_size]
         if seq == 1:
             ttfb_ms = int((time.perf_counter() - started) * 1000)
+            tts_latency_ms.observe(ttfb_ms)
             await ws.send_json({"type": "tts.metrics", "ttfb_ms": ttfb_ms, "bytes": len(audio)})
 
         await ws.send_json(
@@ -174,7 +183,9 @@ async def ws_gateway(ws: WebSocket) -> None:
                 continue
 
             if msg_type == "control.end_of_utterance":
+                stt_started = time.perf_counter()
                 result = stt.transcribe_pcm16(bytes(state.pcm16_mono_16khz))
+                stt_latency_ms.observe((time.perf_counter() - stt_started) * 1000.0)
                 state.pcm16_mono_16khz.clear()
                 
                 # Reset wake-word listening after utterance
@@ -201,11 +212,13 @@ async def ws_gateway(ws: WebSocket) -> None:
 
             if msg_type == "wake.report_false_positive":
                 wake_false_positives.inc()
+                wake_fp_count.inc()
                 await ws.send_json({"type": "wake.report_ack", "reported": "false_positive"})
                 continue
 
             if msg_type == "wake.report_false_negative":
                 wake_false_negatives.inc()
+                wake_fn_count.inc()
                 await ws.send_json({"type": "wake.report_ack", "reported": "false_negative"})
                 continue
 

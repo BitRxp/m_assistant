@@ -44,11 +44,11 @@
   - Клиент на Vite+React: захват микрофона, отправка `audio.chunk` по WS, воспроизведение `tts.chunk`, показ `stt.partial`.
   - Done: end-to-end demo работает локально с backend.
 
-- [ ] Observability & metrics
+- [x] Observability & metrics
   - Добавить `prometheus-client` метрики: stt_latency_ms, tts_latency_ms, llm_latency_ms, wake_fp_count, wake_fn_count, llm_provider_selected.
   - Done: метрики доступны на `/metrics` и отображаются в тестах.
 
-- [ ] Tests & benchmarks
+- [x] Tests & benchmarks
   - Скрипты для бенчмарков latency (scripts/bench_latency.py), e2e сценарии, CI-шаблон.
   - Done: прогон сценариев записывает результаты и сравнивает с baseline.
 
