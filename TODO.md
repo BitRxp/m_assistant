@@ -1,0 +1,68 @@
+<!-- TODO list generated from project tracker -->
+# TODO
+
+Ниже приоритизированный список задач для m_assistant (критерии Done указаны кратко).
+
+- [ ] Project scaffold
+  - Создать каркас репозитория: папки `apps/backend`,`apps/web`,`libs/protocol`,`infra/docker`,`scripts`; добавить `.env.example`, базовые README.md и `pyproject.toml`/`package.json` шаблоны.
+  - Done: структура создана и проверена в репо.
+
+- [ ] Infra: OpenTTS Docker
+  - Добавить Docker Compose для OpenTTS/Coqui.
+  - Done: `docker-compose up` стартует TTS и `/health` возвращает 200.
+
+- [ ] PoC WebSocket audio pipeline
+  - Backend WS endpoint принимает `audio.chunk`, возвращает `stt.partial`/`stt.final` используя `faster-whisper` adapter.
+  - Done: стабильный 10‑минутный звонок без переподключений; лог latency STT собран.
+
+- [ ] PoC TTS streaming
+  - Adapter к OpenTTS: текст → `tts.chunk` стрим; клиент воспроизводит чанки.
+  - Done: измерен time-to-first-audio, нет прерываний при 60s воспроизведении.
+
+- [ ] Dialog Manager v0
+  - Минимальный turn-based менеджер: финальный транскрипт → prompt (с memory top-k) → LLM Proxy → ответ → TTS.
+  - Done: корректное состояние сессии, таймауты не бьют сессию.
+
+- [ ] LLM Proxy v0
+  - Единый адаптер для 2 провайдеров с priority/weighted routing, таймаутами, retry и fallback; метрики выбора/ошибок.
+  - Done: при отказе первичного провайдера запрос уходит во fallback и метрика фиксируется.
+
+- [ ] Memory schema & migrations
+  - Создать SQLite схемы `turns`,`facts`,`summaries`, базовую миграцию (alembic/duckdb-mig).
+  - Done: CRUD тесты проходят локально.
+
+- [ ] Embeddings & retrieval
+  - Интегрировать `fastembed` + `hnswlib`: генерировать эмбеддинги, строить индекс, выполнять top-k retrieval.
+  - Done: retrieval возвращает релевантное top-k для тестовых запросов и ограничивает суммарный контекст.
+
+- [ ] Wake-word PoC
+  - Реализовать PTT + on-device hotword PoC (Porcupine stub или tiny NN).
+  - Deliverable: переключаемый режим активации, метрики FP/FN.
+  - Done: hotword можно включать/отключать на лету; метрики собираются.
+
+- [ ] PoC Web client (React)
+  - Клиент на Vite+React: захват микрофона, отправка `audio.chunk` по WS, воспроизведение `tts.chunk`, показ `stt.partial`.
+  - Done: end-to-end demo работает локально с backend.
+
+- [ ] Observability & metrics
+  - Добавить `prometheus-client` метрики: stt_latency_ms, tts_latency_ms, llm_latency_ms, wake_fp_count, wake_fn_count, llm_provider_selected.
+  - Done: метрики доступны на `/metrics` и отображаются в тестах.
+
+- [ ] Tests & benchmarks
+  - Скрипты для бенчмарков latency (scripts/bench_latency.py), e2e сценарии, CI-шаблон.
+  - Done: прогон сценариев записывает результаты и сравнивает с baseline.
+
+- [ ] Security & privacy review
+  - Документировать threat model, данные, шифрование DB, минимизация логов, opt-in облака.
+  - Done: документ `docs/privacy.md` и checklist исполнения.
+
+- [ ] Docs: protocol & runbook
+  - Документация: `docs/protocol.md`, `docs/benchmarks.md`, `docs/runbook.md` (how to run PoC).
+  - Done: инструкции покрывают запуск на Windows и Linux.
+
+- [ ] Release v0 PoC demo
+  - Собрать рабочий demo: backend + web client + OpenTTS, инструкции запуска и тест checklist.
+  - Done: демонстрация работает на одной машине, latency записан.
+
+---
+Добавьте комментарии или пометьте задачи как выполненные в `manage_todo_list`, затем я синхронизирую TODO.md.

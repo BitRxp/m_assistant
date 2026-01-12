@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  opentts:
+    image: synesthesiam/opentts:en-2.1
+    ports:
+      - "5500:5500"
+    command: ["--cache"]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:5500/api/languages').read(); print('ok')\"" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
