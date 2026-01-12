@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     backend_host: str = "127.0.0.1"
     backend_port: int = 8000
 
+    database_url: str = "sqlite:///./m_assistant.db"
+
     stt_backend: str = "stub"  # stub | faster-whisper
     stt_model: str = "small"
     stt_device: str = "cpu"

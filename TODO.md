@@ -27,9 +27,9 @@
   - Единый адаптер для 2 провайдеров (OpenAI-compatible + Ollama) с priority/weighted routing, таймаутами, retry и fallback; метрики выбора/ошибок.
   - Done: при отказе первичного провайдера запрос уходит во fallback, метрики `llm_fallback_total`/`llm_requests_total` фиксируются (pytest покрывает), `/metrics` доступен.
 
-- [ ] Memory schema & migrations
-  - Создать SQLite схемы `turns`,`facts`,`summaries`, базовую миграцию (alembic/duckdb-mig).
-  - Done: CRUD тесты проходят локально.
+- [x] Memory schema & migrations
+  - Создать SQLite схемы `turns`,`facts`,`summaries`, базовую миграцию (alembic).
+  - Done: `alembic upgrade head` накатывается на пустую SQLite, CRUD тесты проходят локально (pytest покрывает).
 
 - [ ] Embeddings & retrieval
   - Интегрировать `fastembed` + `hnswlib`: генерировать эмбеддинги, строить индекс, выполнять top-k retrieval.
