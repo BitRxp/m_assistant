@@ -9,7 +9,6 @@ from tenacity import RetryError, Retrying, retry_if_exception, stop_after_attemp
 
 from ..settings import settings
 from .base import ChatMessage, LLMAdapter
-from .metrics import llm_fallback, llm_latency_seconds, llm_provider_selected, llm_requests
 from .metrics import llm_fallback, llm_latency_ms, llm_latency_seconds, llm_provider_selected, llm_requests
 from .providers.ollama import OllamaAdapter
 from .providers.openai_compat import OpenAICompatAdapter
@@ -130,6 +129,17 @@ def _build_provider(provider_name: str) -> ProviderSpec:
                 base_url=settings.openai_base_url,
                 api_key=settings.openai_api_key,
                 model=settings.openai_model,
+                timeout_s=settings.llm_timeout_s,
+            ),
+        )
+
+    if name == "grok":
+        return ProviderSpec(
+            name="grok",
+            adapter=OpenAICompatAdapter(
+                base_url=settings.grok_base_url,
+                api_key=settings.grok_api_key,
+                model=settings.grok_model,
                 timeout_s=settings.llm_timeout_s,
             ),
         )

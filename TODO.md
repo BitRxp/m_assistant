@@ -44,6 +44,10 @@
   - Клиент на Vite+React: захват микрофона, отправка `audio.chunk` по WS, воспроизведение `tts.chunk`, показ `stt.partial`.
   - Done: end-to-end demo работает локально с backend.
 
+- [x] Desktop app (Windows)
+  - Минимальный desktop shell (Electron), который загружает существующий web UI.
+  - Done: запускается через `scripts/run_desktop_demo.cmd` или вручную из `apps/desktop`.
+
 - [x] Observability & metrics
   - Добавить `prometheus-client` метрики: stt_latency_ms, tts_latency_ms, llm_latency_ms, wake_fp_count, wake_fn_count, llm_provider_selected.
   - Done: метрики доступны на `/metrics` и отображаются в тестах.
@@ -60,7 +64,7 @@
   - Документация: `docs/protocol.md`, `docs/benchmarks.md`, `docs/runbook.md` (how to run PoC).
   - Done: инструкции покрывают запуск на Windows и Linux.
 
-- [ ] Release v0 PoC demo
+- [x] Release v0 PoC demo
   - Собрать рабочий demo: backend + web client + OpenTTS, инструкции запуска и тест checklist.
   - Done: демонстрация работает на одной машине, latency записан.
 

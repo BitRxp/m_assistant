@@ -3,7 +3,9 @@ from __future__ import annotations
 from prometheus_client import REGISTRY
 
 from m_assistant_backend.llm.base import ChatMessage, LLMAdapter
-from m_assistant_backend.llm.proxy import LLMProxyAdapter, ProviderSpec
+from m_assistant_backend.llm.proxy import LLMProxyAdapter, ProviderSpec, _build_provider
+from m_assistant_backend.llm.providers.openai_compat import OpenAICompatAdapter
+from m_assistant_backend.settings import settings
 
 
 def _sample_value(sample_name: str, labels: dict[str, str]) -> float:
@@ -77,3 +79,13 @@ def test_llm_proxy_weighted_picks_primary_when_secondary_zero_weight() -> None:
 
     out = proxy.complete(messages=[ChatMessage(role="user", content="hi")])
     assert out == "p"
+
+
+def test_build_provider_grok_uses_openai_compat() -> None:
+    settings.grok_base_url = "https://api.x.ai"
+    settings.grok_api_key = "test"
+    settings.grok_model = "grok-2"
+
+    spec = _build_provider("grok")
+    assert spec.name == "grok"
+    assert isinstance(spec.adapter, OpenAICompatAdapter)

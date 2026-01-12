@@ -5,6 +5,91 @@
 - Node 20+ (for web client)
 - (Optional) Docker for OpenTTS if using real TTS
 
+## One-command demo (Windows)
+
+Starts OpenTTS (Docker), backend, and web client:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_demo.ps1
+```
+
+Stop processes (optionally bring Docker down too):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stop_demo.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stop_demo.ps1 -DockerDown
+```
+
+Notes:
+- Use PowerShell in VS Code for the most reliable localhost binding on Windows.
+- Add `-Bootstrap` on the first run to auto-create venv and install deps.
+
+## Desktop app (Windows)
+
+Start backend + OpenTTS, then launch a desktop (Electron) shell that loads the web UI build:
+
+```powershell
+scripts\run_desktop_demo.cmd -Bootstrap
+```
+
+Full voice demo (Grok) with the desktop app:
+
+```powershell
+scripts\run_desktop_demo.cmd -Full -Bootstrap
+Quick local dialog (stub LLM):
+
+```powershell
+scripts\run_desktop_demo.cmd -Dialog -Bootstrap
+```
+
+```
+
+Stopping services is the same as the web demo:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stop_demo.ps1
+```
+
+If you want to run desktop manually:
+
+```powershell
+cd apps\web
+npm install
+npm run build
+
+cd ..\desktop
+npm install
+npm start
+```
+
+## Full voice demo (Grok)
+
+This mode enables:
+- `faster-whisper` STT
+- dialog manager (`DIALOG_ENABLED=true`)
+- LLM via Grok (xAI) using the built-in proxy
+- OpenTTS (Docker)
+
+1) Create `.env` in the repo root (next to `.env.example`) and set:
+
+```dotenv
+GROK_API_KEY=...            # required
+GROK_MODEL=grok-2           # or another Grok model
+GROK_BASE_URL=https://api.x.ai
+```
+
+2) Start everything:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_demo.ps1 -Full -Bootstrap
+```
+
+3) Open the web UI and enable "Hands-free" + "Auto end-of-utterance".
+
+Troubleshooting:
+- If STT fails to import, ensure backend deps were installed with `.[dev,stt]` (the `-Full -Bootstrap` path does this).
+- If Grok returns auth errors, verify `GROK_API_KEY`.
+
 ## Backend (FastAPI WS)
 ```bash
 cd apps/backend

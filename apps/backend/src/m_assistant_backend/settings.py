@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # xAI Grok (OpenAI-compatible)
+    grok_base_url: str = "https://api.x.ai"
+    grok_api_key: str = ""
+    grok_model: str = "grok-2"
+
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
 

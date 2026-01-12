@@ -36,6 +36,11 @@ export function App() {
   const [connected, setConnected] = useState(false)
   const [recording, setRecording] = useState(false)
 
+  const [handsFree, setHandsFree] = useState(false)
+  const [autoEnd, setAutoEnd] = useState(false)
+  const [silenceMs, setSilenceMs] = useState(900)
+  const [levelThreshold, setLevelThreshold] = useState(700)
+
   const [activationMode, setActivationMode] = useState<ActivationMode>('auto')
   const [wakeEnabled, setWakeEnabled] = useState(true)
 
@@ -50,6 +55,56 @@ export function App() {
   const clientRef = useRef<WsGatewayClient | null>(null)
   const micRef = useRef<MicStreamer | null>(null)
   const playerRef = useRef<WavStreamPlayer | null>(null)
+
+  const sessionIdRef = useRef(sessionId)
+  useEffect(() => {
+    sessionIdRef.current = sessionId
+  }, [sessionId])
+
+  const recordingRef = useRef(recording)
+  useEffect(() => {
+    recordingRef.current = recording
+  }, [recording])
+
+  const handsFreeRef = useRef(handsFree)
+  useEffect(() => {
+    handsFreeRef.current = handsFree
+  }, [handsFree])
+
+  const autoEndRef = useRef(autoEnd)
+  useEffect(() => {
+    autoEndRef.current = autoEnd
+  }, [autoEnd])
+
+  const silenceMsRef = useRef(silenceMs)
+  useEffect(() => {
+    silenceMsRef.current = silenceMs
+  }, [silenceMs])
+
+  const levelThresholdRef = useRef(levelThreshold)
+  useEffect(() => {
+    levelThresholdRef.current = levelThreshold
+  }, [levelThreshold])
+
+  const startMicRef = useRef<() => Promise<void>>(async () => {})
+  const stopMicRef = useRef<() => void>(() => {})
+  const endOfUtteranceRef = useRef<() => void>(() => {})
+
+  const lastVoiceAtRef = useRef<number>(0)
+  const utteranceActiveRef = useRef<boolean>(false)
+  const playingTtsRef = useRef<boolean>(false)
+  const pendingResumeRef = useRef<boolean>(false)
+
+  const estimateLevel = useCallback((pcm16: Uint8Array): number => {
+    // cheap peak estimate on PCM16LE bytes
+    let peak = 0
+    for (let i = 0; i + 1 < pcm16.length; i += 4) {
+      const sample = (pcm16[i] | (pcm16[i + 1] << 8)) << 16 >> 16
+      const abs = sample < 0 ? -sample : sample
+      if (abs > peak) peak = abs
+    }
+    return peak
+  }, [])
 
   useEffect(() => {
     playerRef.current = new WavStreamPlayer()
@@ -86,12 +141,24 @@ export function App() {
       }
 
       if (msg.type === 'tts.chunk') {
+        if (handsFreeRef.current && recordingRef.current && !playingTtsRef.current) {
+          playingTtsRef.current = true
+          pendingResumeRef.current = true
+          stopMicRef.current()
+        }
         const bytes = WsGatewayClient.base64ToBytes(msg.payload_base64)
         await playerRef.current?.pushWavChunk(bytes)
       }
 
       if (msg.type === 'tts.end') {
-        // no-op; player drains buffer automatically
+        playingTtsRef.current = false
+        if (handsFreeRef.current && pendingResumeRef.current) {
+          pendingResumeRef.current = false
+          // small delay so audio tail doesn't re-trigger VAD
+          setTimeout(() => {
+            void startMicRef.current()
+          }, 250)
+        }
       }
     }
 
@@ -131,29 +198,64 @@ export function App() {
       targetSampleRate: 16000,
       onPcm16Chunk: (pcm16: Uint8Array) => {
         client.sendAudioChunk({
-          sessionId,
+          sessionId: sessionIdRef.current,
           pcm16,
           sampleRate: 16000,
         })
+
+        if (!autoEndRef.current) return
+
+        const now = performance.now()
+        const level = estimateLevel(pcm16)
+        if (level >= levelThresholdRef.current) {
+          utteranceActiveRef.current = true
+          lastVoiceAtRef.current = now
+          return
+        }
+
+        if (utteranceActiveRef.current && now - lastVoiceAtRef.current >= silenceMsRef.current) {
+          utteranceActiveRef.current = false
+          endOfUtteranceRef.current()
+          if (handsFreeRef.current) {
+            pendingResumeRef.current = true
+            stopMicRef.current()
+          }
+        }
       },
     })
 
     micRef.current = mic
-    await mic.start()
-    setRecording(true)
-  }, [sessionId])
+    try {
+      await mic.start()
+      setRecording(true)
+    } catch (e) {
+      micRef.current = null
+      setErrorText('Mic error: ' + String(e))
+    }
+  }, [estimateLevel])
 
   const stopMic = useCallback(() => {
     setRecording(false)
     micRef.current?.stop()
     micRef.current = null
+    utteranceActiveRef.current = false
   }, [])
 
   const endOfUtterance = useCallback(() => {
     const client = clientRef.current
     if (!client) return
-    client.send({ type: 'control.end_of_utterance', session_id: sessionId })
+    client.send({ type: 'control.end_of_utterance', session_id: sessionIdRef.current })
   }, [sessionId])
+
+  useEffect(() => {
+    startMicRef.current = startMic
+  }, [startMic])
+  useEffect(() => {
+    stopMicRef.current = stopMic
+  }, [stopMic])
+  useEffect(() => {
+    endOfUtteranceRef.current = endOfUtterance
+  }, [endOfUtterance])
 
   const setMode = useCallback(async (mode: ActivationMode) => {
     setActivationMode(mode)
@@ -192,6 +294,8 @@ export function App() {
           <span>{connected ? 'connected' : 'disconnected'}</span>
           <span>•</span>
           <span>{recording ? 'mic on' : 'mic off'}</span>
+          <span>•</span>
+          <span>{handsFree ? 'hands-free' : 'manual'}</span>
         </div>
       </div>
 
@@ -234,6 +338,61 @@ export function App() {
             <button className="btn" disabled={!connected} onClick={endOfUtterance}>
               End of utterance
             </button>
+          </div>
+
+          <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div className="label">Hands-free</div>
+              <div className="row">
+                <label className="pill">
+                  <input
+                    aria-label="hands free"
+                    type="checkbox"
+                    checked={handsFree}
+                    onChange={(e) => setHandsFree(e.target.checked)}
+                  />
+                  <span>{handsFree ? 'on' : 'off'}</span>
+                </label>
+              </div>
+              <div className="mini" style={{ marginTop: 8 }}>
+                Stops mic while TTS plays and resumes afterwards.
+              </div>
+            </div>
+
+            <div>
+              <div className="label">Auto end-of-utterance (silence)</div>
+              <div className="row">
+                <label className="pill">
+                  <input
+                    aria-label="auto end of utterance"
+                    type="checkbox"
+                    checked={autoEnd}
+                    onChange={(e) => setAutoEnd(e.target.checked)}
+                  />
+                  <span>{autoEnd ? 'on' : 'off'}</span>
+                </label>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+                <label className="mini">
+                  <span>silence ms</span>
+                  <input
+                    className="input"
+                    value={String(silenceMs)}
+                    inputMode="numeric"
+                    onChange={(e) => setSilenceMs(Math.max(200, Number(e.target.value) || 0))}
+                  />
+                </label>
+                <label className="mini">
+                  <span>level threshold</span>
+                  <input
+                    className="input"
+                    value={String(levelThreshold)}
+                    inputMode="numeric"
+                    onChange={(e) => setLevelThreshold(Math.max(50, Number(e.target.value) || 0))}
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
           <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
