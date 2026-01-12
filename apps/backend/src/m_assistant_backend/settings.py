@@ -9,11 +9,23 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./m_assistant.db"
 
+    memory_enabled: bool = True
+    retrieval_top_k: int = 5
+    retrieval_max_chars: int = 2000
+    embedder_backend: str = "stub"  # stub | fastembed
+    embedder_model: str = "BAAI/bge-small-en-v1.5"
+
     stt_backend: str = "stub"  # stub | faster-whisper
     stt_model: str = "small"
     stt_device: str = "cpu"
 
     tts_backend: str = "stub"  # stub | opentts
+
+    wake_enabled: bool = False
+    wake_backend: str = "stub"  # stub | porcupine
+    wake_porcupine_access_key: str = ""
+    wake_porcupine_keywords: str = "computer"  # comma-separated
+    wake_porcupine_sensitivity: float = 0.5
 
     dialog_enabled: bool = False
     llm_backend: str = "stub"  # stub | proxy

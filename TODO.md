@@ -31,9 +31,9 @@
   - Создать SQLite схемы `turns`,`facts`,`summaries`, базовую миграцию (alembic).
   - Done: `alembic upgrade head` накатывается на пустую SQLite, CRUD тесты проходят локально (pytest покрывает).
 
-- [ ] Embeddings & retrieval
-  - Интегрировать `fastembed` + `hnswlib`: генерировать эмбеддинги, строить индекс, выполнять top-k retrieval.
-  - Done: retrieval возвращает релевантное top-k для тестовых запросов и ограничивает суммарный контекст.
+- [x] Embeddings & retrieval
+  - Интегрировать генерацию эмбеддингов + retrieval (HNSW если доступен, иначе fallback) и ограничение контекста по символам.
+  - Done: retrieval возвращает top-k и ограничивает суммарный контекст; покрыто pytest; подключено в dialog best-effort (не ломает WS без миграций).
 
 - [ ] Wake-word PoC
   - Реализовать PTT + on-device hotword PoC (Porcupine stub или tiny NN).

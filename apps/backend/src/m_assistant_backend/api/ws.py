@@ -10,10 +10,15 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..dialog.manager import DialogManager
 from ..llm.proxy import create_llm_adapter_from_settings
+from ..memory.db import create_session_factory
+from ..memory.embeddings.factory import create_embedder_from_settings
+from ..memory.retrieval.service import RetrievalService
 from ..settings import settings
 from ..stt.stub import StubSTTAdapter
 from ..tts.opentts import OpenTTSAdapter
 from ..tts.stub import StubTTSAdapter
+from ..wake.factory import create_wake_detector_from_settings
+from ..wake.metrics import wake_detections_total, wake_false_negatives, wake_false_positives
 
 router = APIRouter()
 
@@ -21,10 +26,29 @@ router = APIRouter()
 @dataclass
 class AudioState:
     pcm16_mono_16khz: bytearray
+    wake_listening: bool = True  # Whether actively listening for wake-word
 
 
 def _get_dialog_manager() -> DialogManager:
-    return DialogManager(llm=create_llm_adapter_from_settings())
+    session_factory = None
+    retrieval = None
+    retrieval_model = None
+
+    if settings.memory_enabled:
+        session_factory = create_session_factory(database_url=settings.database_url)
+        embedder = create_embedder_from_settings()
+        retrieval = RetrievalService(embedder=embedder)
+        retrieval_model = settings.embedder_model
+
+    return DialogManager(
+        llm=create_llm_adapter_from_settings(),
+        memory_enabled=settings.memory_enabled,
+        session_factory=session_factory,
+        retrieval=retrieval,
+        retrieval_model=retrieval_model,
+        retrieval_top_k=settings.retrieval_top_k,
+        retrieval_max_chars=settings.retrieval_max_chars,
+    )
 
 
 async def _stream_tts(ws: WebSocket, *, tts, text: str) -> None:
@@ -83,8 +107,10 @@ async def ws_gateway(ws: WebSocket) -> None:
 
     stt = _get_stt_adapter()
     tts = _get_tts_adapter()
+    wake_detector = create_wake_detector_from_settings() if settings.wake_enabled else None
     dialog = _get_dialog_manager() if settings.dialog_enabled else None
-    dialog_session = dialog.start_session() if dialog else None
+    dialog_session = None
+    session_id: str | None = None
     state = AudioState(pcm16_mono_16khz=bytearray())
 
     try:
@@ -92,6 +118,15 @@ async def ws_gateway(ws: WebSocket) -> None:
             raw = await ws.receive_text()
             msg: dict[str, Any] = json.loads(raw)
             msg_type: str = msg.get("type", "")
+
+            if session_id is None:
+                sid = msg.get("session_id")
+                if isinstance(sid, str) and sid.strip():
+                    session_id = sid.strip()
+
+            if dialog and dialog_session is None:
+                # Default to a stable-but-generic session id when client doesn't provide it.
+                dialog_session = dialog.start_session(session_id=session_id or "default")
 
             if msg_type == "audio.chunk":
                 payload_b64 = msg.get("payload_base64")
@@ -105,6 +140,22 @@ async def ws_gateway(ws: WebSocket) -> None:
                     await ws.send_json({"type": "error", "code": "bad_request", "message": "invalid base64"})
                     continue
 
+                # Wake-word detection if enabled
+                if wake_detector and state.wake_listening:
+                    detection = wake_detector.process_audio(pcm16_mono_16khz=chunk)
+                    if detection.detected:
+                        wake_detections_total.labels(keyword=detection.keyword or "unknown").inc()
+                        state.wake_listening = False
+                        await ws.send_json({
+                            "type": "wake.detected",
+                            "keyword": detection.keyword,
+                            "confidence": detection.confidence,
+                        })
+                        continue  # Don't accumulate or send stt.partial after wake
+                    # Still listening for wake-word, don't accumulate audio yet
+                    continue
+                
+                # Accumulate audio only after wake-word detected or when wake-word disabled
                 state.pcm16_mono_16khz.extend(chunk)
                 # PoC: we do not generate real partials yet.
                 await ws.send_json({"type": "stt.partial", "text": "…", "stability": 0.0})
@@ -113,6 +164,12 @@ async def ws_gateway(ws: WebSocket) -> None:
             if msg_type == "control.end_of_utterance":
                 result = stt.transcribe_pcm16(bytes(state.pcm16_mono_16khz))
                 state.pcm16_mono_16khz.clear()
+                
+                # Reset wake-word listening after utterance
+                if wake_detector:
+                    state.wake_listening = True
+                    wake_detector.reset()
+                
                 await ws.send_json({"type": "stt.final", "text": result.text})
 
                 if dialog and dialog_session:
@@ -128,6 +185,16 @@ async def ws_gateway(ws: WebSocket) -> None:
                     continue
 
                 await _stream_tts(ws, tts=tts, text=text)
+                continue
+
+            if msg_type == "wake.report_false_positive":
+                wake_false_positives.inc()
+                await ws.send_json({"type": "wake.report_ack", "reported": "false_positive"})
+                continue
+
+            if msg_type == "wake.report_false_negative":
+                wake_false_negatives.inc()
+                await ws.send_json({"type": "wake.report_ack", "reported": "false_negative"})
                 continue
 
             await ws.send_json({"type": "error", "code": "bad_request", "message": f"unknown type: {msg_type}"})

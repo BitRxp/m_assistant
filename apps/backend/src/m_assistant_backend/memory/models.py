@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -48,4 +48,20 @@ class Summary(Base):
 
     session_id: Mapped[str] = mapped_column(String(64), index=True)
     scope: Mapped[str] = mapped_column(String(32), default="session")  # session | daily | custom
+    text: Mapped[str] = mapped_column(Text)
+
+
+class Embedding(Base):
+    __tablename__ = "embeddings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.UTC)
+    )
+
+    entity_type: Mapped[str] = mapped_column(String(32), index=True)  # turn | fact | summary | custom
+    entity_id: Mapped[int] = mapped_column(Integer, index=True)
+    model: Mapped[str] = mapped_column(String(128), index=True)
+    dims: Mapped[int] = mapped_column(Integer)
+    vector: Mapped[bytes] = mapped_column(LargeBinary)
     text: Mapped[str] = mapped_column(Text)
